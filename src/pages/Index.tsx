@@ -19,10 +19,12 @@ interface Chat {
 
 interface Message {
   id: number;
-  text: string;
+  text?: string;
   time: string;
   sender: 'me' | 'other';
   reactions?: string[];
+  type?: 'text' | 'voice' | 'video';
+  duration?: string;
 }
 
 interface Contact {
@@ -48,10 +50,12 @@ const mockContacts: Contact[] = [
 ];
 
 const mockMessages: Message[] = [
-  { id: 1, text: 'Привет! Как дела?', time: '14:30', sender: 'other' },
-  { id: 2, text: 'Отлично! Работаю над новым проектом', time: '14:31', sender: 'me' },
-  { id: 3, text: 'О, интересно! Расскажешь подробнее?', time: '14:32', sender: 'other', reactions: ['👍', '😊'] },
-  { id: 4, text: 'Конечно! Это мессенджер с крутыми фичами', time: '14:33', sender: 'me', reactions: ['🔥'] },
+  { id: 1, text: 'Привет! Как дела?', time: '14:30', sender: 'other', type: 'text' },
+  { id: 2, text: 'Отлично! Работаю над новым проектом', time: '14:31', sender: 'me', type: 'text' },
+  { id: 3, type: 'voice', time: '14:32', sender: 'other', duration: '0:15', reactions: ['👍', '😊'] },
+  { id: 4, text: 'О, интересно! Расскажешь подробнее?', time: '14:32', sender: 'other', type: 'text' },
+  { id: 5, type: 'video', time: '14:33', sender: 'me', duration: '0:08' },
+  { id: 6, text: 'Конечно! Это мессенджер с крутыми фичами', time: '14:33', sender: 'me', type: 'text', reactions: ['🔥'] },
 ];
 
 const emojiList = ['😊', '❤️', '👍', '🔥', '😂', '😍', '🎉', '✨', '💯', '🚀'];
@@ -69,6 +73,9 @@ export default function Index() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
@@ -92,6 +99,52 @@ export default function Index() {
       }
       return msg;
     }));
+  };
+
+  const startVoiceRecording = () => {
+    setIsRecordingVoice(true);
+    setRecordingTime(0);
+    const interval = setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
+    setTimeout(() => {
+      clearInterval(interval);
+      if (isRecordingVoice) {
+        const newMessage: Message = {
+          id: messages.length + 1,
+          type: 'voice',
+          time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+          sender: 'me',
+          duration: `0:${String(recordingTime).padStart(2, '0')}`
+        };
+        setMessages([...messages, newMessage]);
+        setIsRecordingVoice(false);
+        setRecordingTime(0);
+      }
+    }, 3000);
+  };
+
+  const startVideoRecording = () => {
+    setIsRecordingVideo(true);
+    setRecordingTime(0);
+    const interval = setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
+    setTimeout(() => {
+      clearInterval(interval);
+      if (isRecordingVideo) {
+        const newMessage: Message = {
+          id: messages.length + 1,
+          type: 'video',
+          time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+          sender: 'me',
+          duration: `0:${String(recordingTime).padStart(2, '0')}`
+        };
+        setMessages([...messages, newMessage]);
+        setIsRecordingVideo(false);
+        setRecordingTime(0);
+      }
+    }, 3000);
   };
 
   return (
@@ -218,20 +271,77 @@ export default function Index() {
                         className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'} animate-scale-in`}
                       >
                         <div className="group relative max-w-md">
-                          <div
-                            className={`px-4 py-3 rounded-2xl ${
-                              message.sender === 'me'
-                                ? 'bg-gradient-to-r from-primary to-secondary text-white'
-                                : 'bg-card border border-border'
-                            } shadow-md hover-scale`}
-                          >
-                            <p className="text-sm">{message.text}</p>
-                            <span className={`text-xs mt-1 block ${
-                              message.sender === 'me' ? 'text-white/70' : 'text-muted-foreground'
-                            }`}>
-                              {message.time}
-                            </span>
-                          </div>
+                          {message.type === 'voice' ? (
+                            <div
+                              className={`flex items-center gap-3 px-4 py-3 rounded-full ${
+                                message.sender === 'me'
+                                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                                  : 'bg-card border border-border'
+                              } shadow-md hover-scale min-w-[200px]`}
+                            >
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className={`w-8 h-8 rounded-full ${
+                                  message.sender === 'me' ? 'text-white hover:bg-white/20' : 'hover:bg-muted'
+                                }`}
+                              >
+                                <Icon name="Play" size={16} />
+                              </Button>
+                              <div className="flex-1 flex flex-col gap-1">
+                                <div className={`h-1 rounded-full ${
+                                  message.sender === 'me' ? 'bg-white/30' : 'bg-muted'
+                                } relative overflow-hidden`}>
+                                  <div className={`absolute h-full w-2/3 rounded-full ${
+                                    message.sender === 'me' ? 'bg-white' : 'bg-primary'
+                                  }`} />
+                                </div>
+                                <span className={`text-xs ${
+                                  message.sender === 'me' ? 'text-white/70' : 'text-muted-foreground'
+                                }`}>
+                                  {message.duration}
+                                </span>
+                              </div>
+                              <Icon name="Mic" size={16} className={message.sender === 'me' ? 'text-white/70' : 'text-muted-foreground'} />
+                            </div>
+                          ) : message.type === 'video' ? (
+                            <div
+                              className={`relative rounded-full overflow-hidden ${
+                                message.sender === 'me'
+                                  ? 'bg-gradient-to-br from-primary to-secondary'
+                                  : 'bg-gradient-to-br from-accent to-secondary'
+                              } shadow-xl hover-scale cursor-pointer`}
+                              style={{ width: '180px', height: '180px' }}
+                            >
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-center">
+                                  <Icon name="Play" size={48} className="text-white mb-2" />
+                                  <span className="text-white text-sm font-medium">{message.duration}</span>
+                                </div>
+                              </div>
+                              <div className="absolute top-3 right-3">
+                                <div className="w-8 h-8 rounded-full bg-black/30 flex items-center justify-center">
+                                  <Icon name="VideoIcon" size={16} className="text-white" />
+                                </div>
+                              </div>
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                            </div>
+                          ) : (
+                            <div
+                              className={`px-4 py-3 rounded-2xl ${
+                                message.sender === 'me'
+                                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                                  : 'bg-card border border-border'
+                              } shadow-md hover-scale`}
+                            >
+                              <p className="text-sm">{message.text}</p>
+                              <span className={`text-xs mt-1 block ${
+                                message.sender === 'me' ? 'text-white/70' : 'text-muted-foreground'
+                              }`}>
+                                {message.time}
+                              </span>
+                            </div>
+                          )}
                           {message.reactions && message.reactions.length > 0 && (
                             <div className="absolute -bottom-3 right-2 flex gap-1 bg-background border border-border rounded-full px-2 py-1 shadow-lg">
                               {message.reactions.map((emoji, idx) => (
@@ -259,8 +369,56 @@ export default function Index() {
                 </ScrollArea>
 
                 <footer className="bg-card border-t border-border p-4">
+                  {isRecordingVoice && (
+                    <div className="max-w-4xl mx-auto mb-4 p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-center gap-3 animate-pulse">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center">
+                        <Icon name="Mic" size={20} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">Запись голосового сообщения...</p>
+                        <p className="text-xs text-muted-foreground">0:{String(recordingTime).padStart(2, '0')}</p>
+                      </div>
+                      <Button size="sm" variant="destructive" onClick={() => setIsRecordingVoice(false)}>
+                        Отмена
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {isRecordingVideo && (
+                    <div className="max-w-4xl mx-auto mb-4 p-4 bg-accent/10 border border-accent/20 rounded-2xl flex items-center gap-3 animate-pulse">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-accent to-secondary flex items-center justify-center">
+                        <Icon name="VideoIcon" size={20} className="text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">Запись видео кружочка...</p>
+                        <p className="text-xs text-muted-foreground">0:{String(recordingTime).padStart(2, '0')}</p>
+                      </div>
+                      <Button size="sm" variant="destructive" onClick={() => setIsRecordingVideo(false)}>
+                        Отмена
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="max-w-4xl mx-auto flex items-end gap-3">
                     <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={startVoiceRecording}
+                        disabled={isRecordingVoice || isRecordingVideo}
+                        className="hover-scale"
+                      >
+                        <Icon name="Mic" size={22} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={startVideoRecording}
+                        disabled={isRecordingVoice || isRecordingVideo}
+                        className="hover-scale"
+                      >
+                        <Icon name="VideoIcon" size={22} />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
