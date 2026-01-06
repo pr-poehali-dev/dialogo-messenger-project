@@ -23,8 +23,16 @@ interface Message {
   time: string;
   sender: 'me' | 'other';
   reactions?: string[];
-  type?: 'text' | 'voice' | 'video';
+  type?: 'text' | 'voice' | 'video' | 'gift';
   duration?: string;
+  gift?: Gift;
+}
+
+interface Gift {
+  id: number;
+  name: string;
+  emoji: string;
+  price: number;
 }
 
 interface Contact {
@@ -66,6 +74,17 @@ const stickerPacks = [
   { id: 4, name: 'Лиса', emoji: '🦊' },
 ];
 
+const giftShop: Gift[] = [
+  { id: 1, name: 'Роза', emoji: '🌹', price: 50 },
+  { id: 2, name: 'Торт', emoji: '🎂', price: 100 },
+  { id: 3, name: 'Подарок', emoji: '🎁', price: 150 },
+  { id: 4, name: 'Корона', emoji: '👑', price: 200 },
+  { id: 5, name: 'Бриллиант', emoji: '💎', price: 500 },
+  { id: 6, name: 'Ракета', emoji: '🚀', price: 300 },
+  { id: 7, name: 'Сердце', emoji: '❤️', price: 75 },
+  { id: 8, name: 'Звезда', emoji: '⭐', price: 120 },
+];
+
 export default function Index() {
   const [activeSection, setActiveSection] = useState<'chats' | 'contacts' | 'profile' | 'settings' | 'notifications'>('chats');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(mockChats[0]);
@@ -76,6 +95,8 @@ export default function Index() {
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [userBalance, setUserBalance] = useState(1000);
+  const [showGiftShop, setShowGiftShop] = useState(false);
 
   const handleSendMessage = () => {
     if (!messageText.trim()) return;
@@ -145,6 +166,21 @@ export default function Index() {
         setRecordingTime(0);
       }
     }, 3000);
+  };
+
+  const sendGift = (gift: Gift) => {
+    if (userBalance >= gift.price) {
+      setUserBalance(userBalance - gift.price);
+      const newMessage: Message = {
+        id: messages.length + 1,
+        type: 'gift',
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+        sender: 'me',
+        gift: gift
+      };
+      setMessages([...messages, newMessage]);
+      setShowGiftShop(false);
+    }
   };
 
   return (
@@ -250,7 +286,11 @@ export default function Index() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full shadow-lg">
+                      <Icon name="Coins" size={16} className="text-white" />
+                      <span className="text-white font-bold text-sm">{userBalance}</span>
+                    </div>
                     <Button variant="ghost" size="icon" className="hover-scale">
                       <Icon name="Phone" size={20} />
                     </Button>
@@ -325,6 +365,18 @@ export default function Index() {
                                 </div>
                               </div>
                               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                            </div>
+                          ) : message.type === 'gift' && message.gift ? (
+                            <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-3xl p-6 shadow-2xl hover-scale cursor-pointer transform transition-all hover:rotate-3">
+                              <div className="text-center">
+                                <div className="text-7xl mb-3 animate-bounce-in">{message.gift.emoji}</div>
+                                <h3 className="text-white font-bold text-lg mb-1">{message.gift.name}</h3>
+                                <div className="flex items-center justify-center gap-1 text-amber-300">
+                                  <Icon name="Coins" size={14} />
+                                  <span className="text-sm font-semibold">{message.gift.price}</span>
+                                </div>
+                                <p className="text-white/80 text-xs mt-2">{message.time}</p>
+                              </div>
                             </div>
                           ) : (
                             <div
@@ -404,6 +456,14 @@ export default function Index() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => setShowGiftShop(!showGiftShop)}
+                        className="hover-scale"
+                      >
+                        <Icon name="Gift" size={22} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={startVoiceRecording}
                         disabled={isRecordingVoice || isRecordingVideo}
                         className="hover-scale"
@@ -477,6 +537,41 @@ export default function Index() {
                                 className="aspect-square bg-muted/50 rounded-xl flex items-center justify-center text-4xl hover:scale-110 hover:bg-primary/10 transition-all"
                               >
                                 {sticker.emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {showGiftShop && (
+                        <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-3xl p-6 shadow-2xl animate-scale-in w-96">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-lg">Магазин подарков</h3>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full">
+                              <Icon name="Coins" size={14} className="text-white" />
+                              <span className="text-white font-bold text-sm">{userBalance}</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-3 max-h-80 overflow-y-auto">
+                            {giftShop.map((gift) => (
+                              <button
+                                key={gift.id}
+                                onClick={() => sendGift(gift)}
+                                disabled={userBalance < gift.price}
+                                className={`relative aspect-square bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl flex flex-col items-center justify-center p-3 hover:scale-105 transition-all ${
+                                  userBalance < gift.price ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+                                }`}
+                              >
+                                <div className="text-3xl mb-1">{gift.emoji}</div>
+                                <div className="flex items-center gap-1 text-amber-600">
+                                  <Icon name="Coins" size={10} />
+                                  <span className="text-xs font-bold">{gift.price}</span>
+                                </div>
+                                {userBalance < gift.price && (
+                                  <div className="absolute inset-0 bg-black/20 rounded-2xl flex items-center justify-center">
+                                    <Icon name="Lock" size={20} className="text-white" />
+                                  </div>
+                                )}
                               </button>
                             ))}
                           </div>
